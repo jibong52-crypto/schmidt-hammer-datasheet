@@ -1,0 +1,20 @@
+{
+  "name": "schmidt-hammer-datasheet",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "슈미트해머(KS F 2730) 결과기록지 사진을 읽어 데이터시트 양식을 자동으로 채우는 웹앱",
+  "scripts": {
+    "start": "node server.mjs",
+    "build:pwa": "node tools/build-pwa.mjs _site",
+    "icons": "node tools/mkpwaicons.mjs",
+    "test": "node --test tests/calc.test.mjs tests/record.test.mjs tests/ocr.sample.test.mjs tests/docs.test.mjs tests/zip.test.mjs tests/pdf.test.mjs tests/sheet.geometry.test.mjs tests/photosheet.test.mjs tests/pwa.test.mjs tests/native.test.mjs tests/exif.test.mjs"
+  },
+  "devDependencies": {
+    "onnxruntime-node": "1.31.1",
+    "sharp": "0.34.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

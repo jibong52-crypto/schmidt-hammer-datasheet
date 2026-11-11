@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>휴대폰에서 열기 · 슈미트해머 데이터시트</title>
+  <style>
+    :root {
+      --bg: #f3f4f6; --surface: #fff; --ink: #1b2430; --muted: #667085; --line: #dcdfe4;
+      --accent: #1f5fbf; --accent-soft: #e8f0fc; --warn: #a35f00; --warn-soft: #fff3df;
+      --font: "Pretendard", "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 var(--font); }
+    main { max-width: 640px; margin: 0 auto; padding: 28px 16px 48px; }
+    h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em; }
+    .lead { margin: 0 0 20px; color: var(--muted); }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+    .qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    #qr svg { display: block; width: min(300px, 70vw); height: auto; border: 1px solid var(--line); border-radius: 8px; }
+    .url { font-size: 20px; font-weight: 700; word-break: break-all; text-align: center; letter-spacing: -0.01em; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
+    button, select { font: inherit; height: 36px; padding: 0 12px; border: 1px solid #c3c8d0; border-radius: 8px; background: #fff; color: inherit; cursor: pointer; }
+    button:hover { background: #f7f8fa; }
+    button:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    ol, ul { margin: 0; padding-left: 20px; }
+    li { margin: 6px 0; }
+    h2 { margin: 24px 0 8px; font-size: 15px; }
+    .muted { color: var(--muted); font-size: 13.5px; }
+    .notice { padding: 12px 14px; border-radius: 8px; background: var(--warn-soft); border: 1px solid #f0d6a8; color: #5f3a00; }
+    .notice b { color: #4a2d00; }
+    code { font: 13px ui-monospace, Consolas, monospace; background: var(--accent-soft); padding: 1px 6px; border-radius: 4px; }
+    a { color: var(--accent); }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>휴대폰에서 열기</h1>
+  <p class="lead">PC와 <b>같은 Wi-Fi</b>에 연결된 휴대폰으로 이 앱을 쓸 수 있습니다. 현장에서 폰 카메라로 결과기록지를 찍으면 바로 양식이 채워집니다.</p>
+
+  <div id="off" class="notice" hidden>
+    지금 서버는 <b>이 PC에서만</b> 접속되는 모드(<code>start.bat</code>)로 실행 중입니다.
+    이 서버 창을 닫고 <b>start-phone.bat</b> 을 실행하면 휴대폰에서도 접속됩니다.
+  </div>
+  <div id="none" class="notice" hidden>
+    PC의 Wi-Fi/유선 네트워크 주소를 찾지 못했습니다. PC가 네트워크에 연결되어 있는지 확인한 뒤 <b>start-phone.bat</b> 을 다시 실행하세요.
+  </div>
+
+  <section id="on" class="card" hidden>
+    <div class="qr-wrap">
+      <div id="qr" aria-live="polite"></div>
+      <div class="url" id="url"></div>
+      <div class="row">
+        <button type="button" id="copy">주소 복사</button>
+        <label id="pickWrap" class="muted" hidden>다른 주소 <select id="pick"></select></label>
+      </div>
+      <p class="muted" id="iface" style="margin:0"></p>
+    </div>
+
+    <h2>이렇게 여세요</h2>
+    <ol>
+      <li>휴대폰을 PC와 <b>같은 Wi-Fi</b>에 연결합니다 (LTE/5G나 게스트 Wi-Fi는 안 됩니다).</li>
+      <li>휴대폰 <b>카메라 앱</b>으로 위 QR을 비춰 나오는 링크를 누릅니다. QR이 안 되면 주소를 브라우저에 직접 입력하세요.</li>
+      <li>앱이 열리면 <b>카메라로 촬영</b> → 결과기록지를 찍으면 값을 읽어 양식을 채웁니다.</li>
+    </ol>
+
+    <h2>알아두세요</h2>
+    <ul class="muted">
+      <li>PC가 켜져 있고 <b>start-phone.bat 창이 열려 있는 동안만</b> 접속됩니다. 창을 닫으면 끊깁니다.</li>
+      <li>처음 열 때 OCR 엔진(약 30MB)을 내려받습니다. Wi-Fi에서는 수 초 걸립니다.</li>
+      <li>사진은 <b>휴대폰 브라우저 안에서만</b> 처리됩니다. PC나 인터넷으로 전송되지 않습니다.</li>
+      <li>이 연결은 보안 연결(https)이 아니라서 휴대폰에서는 PC보다 인식이 느릴 수 있습니다 (단일 스레드).</li>
+      <li>접속이 안 되면: 폰과 PC가 같은 Wi-Fi인지, 공유기의 <b>기기 간 격리(AP isolation)</b>가 꺼져 있는지, PC 방화벽에서 Node.js가 허용되어 있는지 확인하세요.</li>
+    </ul>
+  </section>
+
+  <p class="muted" style="margin-top:20px"><a href="./">← 앱으로 돌아가기</a></p>
+</main>
+
+<script type="module">
+  import qrcode from './vendor/qrcode/qrcode.mjs';
+
+  const $ = (id) => document.getElementById(id);
+
+  function qrSvg(text) {
+    const qr = qrcode(0, 'M');                 // 크기 자동, 오류정정 M
+    qr.addData(text);
+    qr.make();
+    const n = qr.getModuleCount(), quiet = 4;  // 스캔이 잘 되도록 여백 4칸
+    const size = n + quiet * 2;
+    let d = '';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c + quiet} ${r + quiet}h1v1h-1z`;
+    return `<svg viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges" role="img" aria-label="휴대폰 접속용 QR 코드"><rect width="${size}" height="${size}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+  }
+
+  function show(addr, all) {
+    $('qr').innerHTML = qrSvg(addr.url);
+    $('url').textContent = addr.url;
+    $('iface').textContent = `PC 네트워크: ${addr.name}`;
+    $('copy').onclick = async () => {
+      try { await navigator.clipboard.writeText(addr.url); $('copy').textContent = '복사됨'; } catch { window.prompt('주소를 복사하세요', addr.url); }
+      setTimeout(() => ($('copy').textContent = '주소 복사'), 1500);
+    };
+    if (all.length > 1) {
+      $('pickWrap').hidden = false;
+      $('pick').innerHTML = all.map((a, i) => `<option value="${i}">${a.address} (${a.name})</option>`).join('');
+      $('pick').value = String(all.indexOf(addr));
+      $('pick').onchange = () => show(all[Number($('pick').value)], all);
+    }
+  }
+
+  try {
+    const info = await (await fetch('__lan.json', { cache: 'no-store' })).json();
+    if (!info.lan) $('off').hidden = false;
+    else if (!info.addresses.length) $('none').hidden = false;
+    else { $('on').hidden = false; show(info.addresses[0], info.addresses); }
+  } catch {
+    $('off').hidden = false;      // 정적 호스팅 등 서버 API 가 없는 환경
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  슈미트해머 데이터시트 — WebView 앱.
+  권한을 하나도 요청하지 않는다: INTERNET 이 없어서 앱은 네트워크를 쓸 수 없고(사진이 밖으로 나갈 수 없음),
+  카메라는 시스템 카메라 앱에 맡기므로 CAMERA 권한도 필요 없다.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="app.schmidt.datasheet">
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@style/AppTheme"
+        android:allowBackup="false"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="false"
+        android:hardwareAccelerated="true">
+
+        <!-- 세이프 브라우징은 구글 서버 조회가 필요하고 이 앱은 로컬 자산만 연다 -->
+        <meta-data android:name="android.webkit.WebView.EnableSafeBrowsing" android:value="false" />
+        <meta-data android:name="android.webkit.WebView.MetricsOptOut" android:value="true" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|uiMode|density"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 카메라 앱이 사진을 써 넣을 임시 파일을 내주는 용도 (앱 캐시 폴더만) -->
+        <provider
+            android:name=".CaptureProvider"
+            android:authorities="app.schmidt.datasheet.captures"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+    </application>
+</manifest>

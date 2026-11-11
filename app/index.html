@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>슈미트해머 데이터시트</title>
+  <!-- PWA: 홈 화면에 설치해 앱처럼 쓰고 인터넷 없이 실행 (아이폰은 apple-* 설정과 apple-touch-icon 을 쓴다) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#1f5fbf">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="슈미트해머">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="description" content="슈미트해머 결과기록지 사진을 읽어 KS F 2730 데이터시트 양식을 자동으로 채웁니다.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f5fbf'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='white' stroke-width='2.5'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7"/><circle cx="16" cy="16" r="7"/></svg>
+      <div>
+        <h1>슈미트해머 데이터시트</h1>
+        <p class="sub">KS F 2730 반발경도 · 결과기록지 자동 작성</p>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="화면 선택">
+      <a class="tab" id="tabEdit" href="#/edit" data-view="edit">작성</a>
+      <a class="tab" id="tabDocs" href="#/docs" data-view="docs">문서함<span class="tab-count" id="tabCount" hidden></span></a>
+    </nav>
+    <div class="top-actions">
+      <a class="phone-link" id="phoneLink" href="phone.html" target="_blank" rel="noopener">휴대폰에서 열기</a>
+      <span class="engine" id="engineStatus" role="status" data-state="idle">OCR 엔진 대기 중</span>
+    </div>
+  </header>
+
+  <!-- PWA 안내: 홈 화면 설치 방법 / 새 버전 알림 (js/pwa.js) -->
+  <div class="pwa-bar" id="pwaBar" role="status" hidden></div>
+
+  <div id="fileNotice" class="notice warn" hidden>
+    이 페이지를 파일(file://)로 직접 열어서 OCR 엔진을 불러올 수 없습니다. 같은 폴더의 <b>start.bat</b>을 실행하거나, 서버에 올려서 열어주세요. (측정값은 직접 입력해도 양식은 채워집니다.)
+  </div>
+
+  <!-- ───────── 작성 화면 ───────── -->
+  <div class="view view-editor" id="viewEditor">
+  <main class="layout">
+    <aside class="panel" aria-label="입력">
+
+      <!-- 1. 결과기록지 -->
+      <section class="card" id="cardUpload">
+        <h2><span class="step">1</span>결과기록지</h2>
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="결과기록지 이미지 선택">
+          <svg viewBox="0 0 24 24" class="drop-ico" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <p class="drop-main" id="dropMain">사진을 끌어다 놓거나 클릭해서 선택</p>
+          <p class="drop-sub" id="dropSub">Ctrl+V로 붙여넣기도 됩니다</p>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" multiple hidden>
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
+        <div class="row gap">
+          <button type="button" class="btn" id="btnCamera">카메라로 촬영</button>
+          <button type="button" class="btn ghost" id="btnSample">예시 이미지로 체험</button>
+        </div>
+        <p class="hint">사진을 여러 장 고르면 한꺼번에 문서로 저장합니다.</p>
+
+        <div id="previewWrap" hidden>
+          <div class="progress" id="progress" hidden><div class="bar" id="progressBar"></div></div>
+          <p class="status" id="ocrStatus" role="status"></p>
+          <div class="preview-box" id="previewBox">
+            <div class="preview-inner" id="previewInner">
+              <canvas id="previewCanvas"></canvas>
+              <div id="overlay"></div>
+            </div>
+          </div>
+          <div class="row gap tools">
+            <button type="button" class="btn small" id="btnRotL" title="반시계 방향 90° 회전 후 다시 인식">⟲ 회전</button>
+            <button type="button" class="btn small" id="btnRotR" title="시계 방향 90° 회전 후 다시 인식">회전 ⟳</button>
+            <button type="button" class="btn small" id="btnRetry">다시 인식</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. 측정값 -->
+      <section class="card" id="cardValues">
+        <h2><span class="step">2</span>측정값 확인<span class="badge" id="verifyBadge" hidden></span></h2>
+        <p class="hint">인식 결과입니다. 틀린 값은 직접 고치면 양식에 바로 반영됩니다.</p>
+        <div class="values" id="valuesGrid"></div>
+
+        <div class="angle">
+          <div class="label">타격 각도 (ANGLE)</div>
+          <div class="seg" id="angleSeg" role="radiogroup" aria-label="타격 각도">
+            <button type="button" role="radio" data-angle="90">+90°</button>
+            <button type="button" role="radio" data-angle="45">+45°</button>
+            <button type="button" role="radio" data-angle="0">0°</button>
+            <button type="button" role="radio" data-angle="-45">-45°</button>
+            <button type="button" role="radio" data-angle="-90">-90°</button>
+          </div>
+          <p class="hint" id="angleNote"></p>
+        </div>
+
+        <dl class="stats" id="stats"></dl>
+        <ul class="msgs" id="messages"></ul>
+
+        <label class="check"><input type="radio" name="order" value="row" checked> 번호를 가로로 (1~5가 첫 줄)</label>
+        <label class="check"><input type="radio" name="order" value="col"> 번호를 세로로 (1~4가 첫 열)</label>
+      </section>
+
+      <!-- 3. 시험 정보 -->
+      <section class="card" id="cardInfo">
+        <h2><span class="step">3</span>시험 정보</h2>
+        <div class="fields">
+          <label class="wide">현장명<input type="text" id="f-site" autocomplete="off" maxlength="60"><div class="recent" id="recent-site"></div></label>
+          <label class="wide">시험위치<input type="text" id="f-location" autocomplete="off"></label>
+          <label>타설일<input type="date" id="f-pour"></label>
+          <label>시험일<input type="date" id="f-test"></label>
+          <label>시험자<input type="text" id="f-tester" autocomplete="off" maxlength="40"><div class="recent" id="recent-tester"></div></label>
+          <label>감리원<input type="text" id="f-supervisor" autocomplete="off" maxlength="40"><div class="recent" id="recent-supervisor"></div></label>
+          <label>재령일 <span class="auto" id="ageAuto"></span>
+            <div class="with-unit"><input type="number" id="f-age" min="0" step="1" inputmode="numeric" placeholder="자동"><span>일</span></div>
+          </label>
+          <label>재령계수 (α) <span class="auto" id="alphaAuto"></span>
+            <input type="number" id="f-alpha" min="0" step="0.01" inputmode="decimal" placeholder="표에서 자동">
+          </label>
+        </div>
+        <p class="hint" id="rememberNote"></p>
+      </section>
+
+      <!-- 4. 사진대지 -->
+      <section class="card" id="cardShots">
+        <h2><span class="step">4</span>사진대지<span class="badge ok" id="shotBadge" hidden></span></h2>
+        <p class="hint">시험 사진을 넣으면 사진대지 양식(A4 세로, 한 쪽에 사진 2장)에 들어갑니다. 시험위치·타설일·시험일·현장명은 위 시험 정보가 그대로 적힙니다.</p>
+        <div class="row gap">
+          <button type="button" class="btn" id="btnShotAdd">사진 추가</button>
+          <button type="button" class="btn" id="btnShotCamera">카메라로 촬영</button>
+        </div>
+        <input type="file" id="shotInput" accept="image/*" multiple hidden>
+        <input type="file" id="shotCamera" accept="image/*" capture="environment" hidden>
+        <div class="shots" id="shotList" aria-live="polite"></div>
+        <div class="fields">
+          <label class="wide">시험내용<input type="text" id="f-work" autocomplete="off" maxlength="60" placeholder="콘크리트 반발경도 확인"></label>
+        </div>
+        <details class="more" id="sheetTextBox">
+          <summary>인쇄 머리글·바닥글 (선택)</summary>
+          <p class="hint">회사 양식에 인쇄되는 머리글(오른쪽 위)·바닥글(맨 아래 오른쪽)이 있으면 적어 두세요. 사진대지에 같은 위치로 들어갑니다. 이 기기에만 저장되고 모든 문서에 적용됩니다.</p>
+          <div class="fields">
+            <label class="wide">머리글<input type="text" id="f-head" autocomplete="off" maxlength="80"></label>
+            <label class="wide">바닥글<input type="text" id="f-foot" autocomplete="off" maxlength="300"></label>
+          </div>
+        </details>
+        <div class="shot-opts">
+          <div class="label">사진 배치</div>
+          <div class="seg two" id="fitSeg" role="radiogroup" aria-label="사진 배치">
+            <button type="button" role="radio" data-fit="contain">칸에 맞춤</button>
+            <button type="button" role="radio" data-fit="cover">칸 채우기</button>
+          </div>
+          <p class="hint">맞춤은 사진 전체가 보이고 남는 곳은 흰색, 채우기는 칸을 꽉 채우며 가장자리가 잘립니다.</p>
+        </div>
+      </section>
+
+      <details class="card debug" id="debug">
+        <summary>인식 상세 (문제 확인용)</summary>
+        <pre id="debugText"></pre>
+      </details>
+    </aside>
+
+    <!-- 양식 미리보기 -->
+    <section class="preview" aria-label="양식 미리보기">
+      <div class="result-bar" id="resultBar">
+        <div class="chip"><span>R₀</span><b id="chipR0">–</b></div>
+        <div class="chip"><span>재령계수 α</span><b id="chipAlpha">–</b></div>
+        <div class="chip strong"><span>Fc</span><b id="chipFc">–</b><i>MPa</i></div>
+      </div>
+
+      <div class="sheet-host" id="sheetHost">
+        <!-- ───────── 1쪽: 데이터시트 ───────── -->
+        <div class="page-frame"><div class="page" id="page1">
+          <div class="abs site">현장명 : <span class="val" data-bind="site"></span></div>
+
+          <svg class="abs" id="gridSvg" style="left:0;top:0" width="720" height="570" viewBox="0 0 720 570" aria-label="타점 배치"></svg>
+
+          <div class="abs data-sheet">DATA SHEET</div>
+
+          <svg class="abs" id="angleSvg" style="left:790px;top:70px" width="140" height="470" viewBox="790 70 140 470" aria-label="타격 방향">
+            <defs>
+              <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <rect width="6" height="6" fill="#fff"/><line x1="0" y1="0" x2="0" y2="6" stroke="#222" stroke-width="2.2"/>
+              </pattern>
+              <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#222"/></marker>
+            </defs>
+            <rect x="822" y="92" width="71" height="26" fill="url(#hatch)" stroke="#222"/>
+            <line x1="857" y1="185" x2="857" y2="126" stroke="#222" stroke-width="1.6" marker-end="url(#arr)"/>
+            <g class="ang" data-a="90"><rect class="ring" x="824" y="198" width="66" height="30" rx="15"/><text x="857" y="214">90°</text></g>
+
+            <rect x="815" y="265" width="27" height="71" fill="url(#hatch)" stroke="#222"/>
+            <line x1="890" y1="301" x2="847" y2="301" stroke="#222" stroke-width="1.6" marker-end="url(#arr)"/>
+            <g class="ang" data-a="0"><rect class="ring" x="832" y="344" width="52" height="30" rx="15"/><text x="858" y="360">0°</text></g>
+
+            <g class="ang" data-a="-90"><rect class="ring" x="824" y="378" width="66" height="30" rx="15"/><text x="857" y="394">-90°</text></g>
+            <line x1="860" y1="418" x2="860" y2="478" stroke="#222" stroke-width="1.6" marker-end="url(#arr)"/>
+            <rect x="822" y="483" width="71" height="24" fill="url(#hatch)" stroke="#222"/>
+            <text class="ang-other" id="angleOther" x="860" y="528" text-anchor="middle"></text>
+          </svg>
+
+          <div class="abs note n1"><i>◎</i>KS F 2730 콘크리트 압축강도 추정을 위한 반발경도 시험방법</div>
+          <div class="abs note n2"><i>◎</i>300㎜*300㎜를 넘지 않는 한 지점을 정하는 것이 효과적이며, 20개 평균값으로부터 오차범위 ±20% 이상값은 버리고 나머지로 평균값을</div>
+          <div class="abs note n3">구하되 범위를 벗어나는 시험값이 4개 이상인 경우 전체 시험값을 버리고 새로 재시험을 한다.</div>
+
+          <div class="abs note n4"><i>◎</i>반발경도 계산</div>
+          <div class="abs formula" id="formula">
+            <span>Fc = (7.3R<sub>0</sub>+100)×0.098 = 7.3x(</span><b class="slot" data-bind="R0"></b><span>)+100 =</span><b class="slot" data-bind="A"></b><span>x 재령계수</span><b class="slot" data-bind="alpha"></b><span>=</span><b class="slot wide" data-bind="Fc"></b><span>MPa</span>
+          </div>
+          <div class="abs memo" id="memo"></div>
+
+          <div class="abs f f-pour">타설일 : <span class="val" data-bind="pour"></span></div>
+          <div class="abs f f-test">시험일 : <span class="val" data-bind="test"></span></div>
+          <div class="abs f f-age">재령보정계수 : <span class="val" data-bind="age"></span> 일<span class="alpha-note" id="alphaNote" hidden>α = <span class="val" data-bind="alphaSide"></span></span></div>
+          <div class="abs f f-loc">시험위치 : <span class="val" data-bind="location"></span></div>
+          <div class="abs f f-tester">시험자 : <span class="val" data-bind="tester"></span></div>
+          <div class="abs f f-sup">감리원 : <span class="val" data-bind="supervisor"></span></div>
+        </div></div>
+
+        <!-- ───────── 2쪽: 참고표 ───────── -->
+        <div class="page-frame"><div class="page" id="page2">
+          <div class="abs ref-title age-title">재령보정계수</div>
+          <div class="abs age-tables" id="ageTables"></div>
+
+          <img class="abs chart" src="assets/chart-direction.png" alt="타격방향에 의한 보정 그래프" width="600">
+          <table class="abs dir-table" id="dirTable"></table>
+        </div></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="actionbar" id="actionBar" role="toolbar" aria-label="문서 작업">
+    <p class="savestate" id="saveState" role="status" aria-live="polite" data-state="new">새 문서</p>
+    <div class="actions">
+      <button type="button" class="btn primary" id="btnSave">저장</button>
+      <button type="button" class="btn" id="btnNew">새 문서</button>
+      <button type="button" class="btn" id="btnPdf" title="양식 2쪽을 PDF 파일로 저장">PDF 저장</button>
+      <button type="button" class="btn" id="btnPrint" title="프린터로 인쇄">인쇄</button>
+    </div>
+  </div>
+  </div>
+
+  <!-- ───────── 문서함 ───────── -->
+  <section class="view view-library" id="viewLibrary" aria-label="문서함" hidden>
+    <div class="lib-inner">
+      <div class="lib-head">
+        <h2>문서함 <span class="lib-count" id="libCount"></span></h2>
+        <div class="lib-tools">
+          <button type="button" class="btn primary" id="libBatch">사진으로 여러 장 추가</button>
+          <button type="button" class="btn" id="libImport">ZIP 가져오기</button>
+        </div>
+      </div>
+      <p class="notice warn" id="libStorageNote" hidden>이 브라우저에서는 문서를 저장해 둘 수 없어 이번 접속 동안만 유지됩니다 (시크릿 모드 등). 필요한 문서는 ZIP으로 내보내 두세요.</p>
+      <div class="lib-filter" id="libFilter" hidden>
+        <input type="search" id="libSearch" placeholder="현장명 · 시험위치 · 시험자 검색" aria-label="문서 검색" autocomplete="off">
+        <button type="button" class="btn small ghost" id="libSelectAll">전체 선택</button>
+      </div>
+      <div class="lib-list" id="libList"></div>
+      <div class="lib-empty" id="libEmpty" hidden>
+        <p><b>저장된 문서가 없습니다.</b></p>
+        <p>작성 화면에서 결과기록지를 읽으면 시험일별로 여기에 자동 저장됩니다.<br>사진이 여러 장이면 [사진으로 여러 장 추가]로 한꺼번에 저장할 수 있습니다.</p>
+      </div>
+      <p class="lib-empty" id="libNoMatch" hidden>검색 결과가 없습니다.</p>
+    </div>
+    <div class="selbar" id="selBar" hidden>
+      <span class="sel-count" id="selCount">0건 선택</span>
+      <div class="actions">
+        <button type="button" class="btn primary" id="selExport">ZIP으로 내보내기</button>
+        <button type="button" class="btn danger-outline" id="selDelete">삭제</button>
+        <button type="button" class="btn ghost" id="selClear">선택 해제</button>
+      </div>
+    </div>
+    <input type="file" id="libPhotoInput" accept="image/*" multiple hidden>
+    <input type="file" id="libImportInput" accept=".zip,.json,application/zip,application/x-zip-compressed,application/json" hidden>
+  </section>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

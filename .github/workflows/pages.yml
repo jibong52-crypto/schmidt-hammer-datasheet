@@ -1,0 +1,84 @@
+# GitHub Pages 배포
+#
+# main 에 push 하거나 Actions 탭에서 수동 실행(Run workflow)하면
+#   1) node app/tools/build-pwa.mjs _site  로 배포용 폴더(_site)를 만들고  (app/ 에서 필요한 파일만 복사 + precache.js 생성)
+#   2) 필요한 파일이 다 있는지 확인한 뒤
+#   3) GitHub Pages 에 올린다.
+#
+# 처음 한 번 해 둘 것: 저장소 Settings > Pages > Build and deployment > Source 를 "GitHub Actions" 로 선택.
+#   (선택하기 전에 실행하면 "Setup Pages" 단계에서 실패한다 — 설정한 뒤 Re-run 하면 된다.)
+#
+# 단위 시험(npm test)은 일부러 넣지 않았다: devDependencies(onnxruntime-node, sharp) 설치가 필요해서
+# 배포가 느려지고 네트워크 사정에 따라 실패할 수 있다. 시험은 로컬에서 `cd app; npm install; npm test`.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 같은 그룹의 실행은 하나만 유지한다: 새 push 가 오면 진행 중이던 이전 실행은 취소한다.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      - name: Build PWA into _site
+        run: node app/tools/build-pwa.mjs _site
+
+      - name: Verify build output
+        run: |
+          set -euo pipefail
+          fail=0
+          for f in precache.js index.html manifest.webmanifest sw.js models/det.onnx; do
+            if [ ! -s "_site/$f" ]; then
+              echo "::error title=Build output missing::_site/$f is missing or empty"
+              fail=1
+            fi
+          done
+          # 서명 키나 회사 문서가 공개 사이트에 섞여 들어가면 안 된다.
+          leaked="$(find _site -type f \( -name '*.p12' -o -name '*.pfx' -o -name '*.jks' -o -name '*.keystore' -o -name '*.apk' -o -name '*.xlsx' -o -name '*.xls' -o -name 'signing.properties' \))"
+          if [ -n "$leaked" ]; then
+            echo "$leaked"
+            echo "::error title=Forbidden files in build output::see the file list above"
+            fail=1
+          fi
+          if [ "$fail" -ne 0 ]; then exit 1; fi
+          echo "Build output OK: $(find _site -type f | wc -l) files, $(du -sh _site | cut -f1)"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

@@ -1,0 +1,50 @@
+# ============================================================================
+# 줄바꿈·바이너리 처리 규칙
+# ============================================================================
+
+# 기본값: 텍스트 파일은 저장소 안에서 LF 로 통일하고, 내려받을 때도 LF 로 둔다
+# (Windows 에서 받아도 LF — 줄바꿈 차이로 생기는 쓸데없는 diff 방지).
+* text=auto eol=lf
+
+# ---- Windows 스크립트는 CRLF 로 내려받는다 ----------------------------------
+#  .bat/.cmd : cmd.exe 는 LF 만 있는 파일에서 라벨/GOTO 가 오동작할 수 있다.
+#  .ps1      : Windows PowerShell 5.1 용.
+#
+#  ※ android/build.ps1, android/install-usb.ps1 은 한글이 들어 있어서 UTF-8 BOM(파일 맨 앞
+#    EF BB BF)이 반드시 있어야 한다. BOM 이 없으면 PowerShell 5.1 이 파일을 ANSI(CP949)로 읽어
+#    한글이 깨지거나 구문 오류가 난다.
+#    git 은 BOM 을 지우지도 붙이지도 않는다. 위의 text/eol 설정은 줄바꿈(LF/CRLF)만 바꾸므로
+#    BOM 은 그대로 보존된다. 다만 편집기가 "BOM 없는 UTF-8" 로 다시 저장하면 사라지니, 이 두 파일을
+#    고친 뒤에는 맨 앞 3바이트가 EF BB BF 인지 확인한다.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# ---- 바이너리: 줄바꿈 변환·diff·병합을 하지 않는다 --------------------------
+*.onnx binary
+*.wasm binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.apk binary
+*.aab binary
+*.p12 binary
+*.pfx binary
+*.jks binary
+*.keystore binary
+*.xlsx binary
+*.xls binary
+*.zip binary
+*.pdf binary
+
+# ---- 텍스트지만 한 바이트도 바뀌면 안 되는 파일 -----------------------------
+# OCR 글자 사전: "줄 번호 = 모델이 내놓는 글자 번호" 라서 줄이 하나라도 늘거나 줄면 인식 결과가
+# 전부 어긋난다. 줄바꿈 변환을 하지 않고 지금 상태(끝 줄바꿈 없음) 그대로 둔다.
+app/models/dict.txt -text
+
+# ---- GitHub 언어 통계 ---------------------------------------------------------
+# 외부 라이브러리는 이 프로젝트의 코드가 아니므로 언어 통계에서 뺀다.
+app/vendor/** linguist-vendored

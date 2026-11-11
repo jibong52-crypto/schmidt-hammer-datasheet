@@ -1,0 +1,84 @@
+# ============================================================================
+# 저장소에서 제외하는 것과 그 이유
+# ============================================================================
+#
+# 1) 서명 키와 비밀번호 (android/signing/, *.p12, *.jks, *.keystore, signing.properties, .env*)
+#    - 안드로이드 앱(APK)을 업데이트하려면 처음 만든 서명 키가 계속 필요하다. 이 키를 잃으면
+#      기존 앱 위에 업데이트할 수 없으므로(앱을 지우고 다시 설치 = 저장된 문서 삭제) 저장소에만
+#      맡기지 말고 저장소 밖(USB, 비밀번호 관리자 등)에 따로 백업해 둔다.
+#    - 공개 저장소에 올라가면 누구나 같은 서명으로 앱을 만들 수 있게 된다(유출 사고).
+#
+# 2) 회사 원본 문서 (슈미트/ = 엑셀 양식·결과기록지 원본 사진, 그 밖의 엑셀 파일)
+#    - 회사 자료라서 공개 저장소에 올리지 않는다. 앱이 쓰는 예시 사진은 app/samples/ 에 따로 있다.
+#
+# 3) 빌드 산출물 (*.apk, android/dist·build·work, _site/, app/precache.js)
+#    - 소스에서 다시 만들 수 있고 용량도 크다. APK 를 나눠 줄 때는 GitHub Releases 첨부를 쓴다.
+#
+# 4) 앱에서 내보낸 사용자 데이터 (ZIP, PDF, 목록.csv, 데이터.json)
+#    - 실제 시험 자료(현장명·시험자 등)가 들어 있을 수 있다.
+#
+# 5) 의존성, 로그, 임시 파일, OS·편집기·도구 파일
+#
+# 꼭 저장소에 들어가야 하는 것 (아래 규칙이 가리지 않는지 확인함):
+#   app/models/*.onnx, app/models/dict.txt, app/vendor/ort/*, app/vendor/qrcode/*, app/samples/*,
+#   android/build.ps1, android/install-usb.ps1, android/src/**, android/res/**, android/AndroidManifest.xml
+#
+# 확인 방법:  git status --ignored        git check-ignore -v <경로>
+# ============================================================================
+
+
+# ---- 1) 서명 키·비밀값 ------------------------------------------------------
+android/signing/
+signing.properties
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.pem
+*.key
+.env*
+
+# ---- 2) 회사 원본 문서 ------------------------------------------------------
+슈미트/
+*.xlsx
+*.xls
+*.xlsm
+# 엑셀이 열려 있는 동안 생기는 임시 파일
+~$*
+
+# ---- 3) 빌드 산출물 ---------------------------------------------------------
+*.apk
+*.aab
+android/dist/
+android/build/
+android/work/
+android/toolchain/
+# GitHub Pages 에 올릴 폴더 (node app/tools/build-pwa.mjs _site)
+_site/
+# 서비스 워커가 읽는 파일 목록 — 빌드 때마다 새로 만든다
+app/precache.js
+
+# ---- 4) 앱에서 내보낸 사용자 데이터 -----------------------------------------
+*.zip
+*.pdf
+목록.csv
+데이터.json
+
+# ---- 5) 의존성·로그·임시 ----------------------------------------------------
+node_modules/
+*.log
+npm-debug.log*
+*.tmp
+*.bak
+*.swp
+scratchpad/
+tmp/
+
+# ---- 6) OS·편집기·도구 ------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+# Claude Code 로컬 설정(내 PC 경로가 들어갈 수 있음)
+.claude/
